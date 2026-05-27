@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>HIS Backup Monitor — Demo</title>
+        <link rel="stylesheet" href="./css.css">
+        <script src="./index.js"></script>
+    </head>
+    <body>
+
+        <header>
+            <div class="logo">
+                <div class="logo-dot"></div>
+                HIS Backup Monitor
+            </div>
+            <div class="header-right">
+                <span class="last-sync" id="lastSync">sync: --:--:--</span>
+                <span class="demo-badge">⚠ DEMO MODE</span>
+            </div>
+        </header>
+
+        <main>
+
+            <div class="stats-row" id="statsRow">
+                <div class="stat-card green">
+                    <div class="stat-label">Tổng bản ghi</div>
+                    <div class="stat-value" id="sTotalBackups">—</div>
+                    <div class="stat-sub">bản backup</div>
+                </div>
+                <div class="stat-card blue">
+                    <div class="stat-label">Tổng dung lượng</div>
+                    <div class="stat-value" id="sTotalSize">—</div>
+                    <div class="stat-sub">gigabytes</div>
+                </div>
+                <div class="stat-card yellow">
+                    <div class="stat-label">Số bệnh viện</div>
+                    <div class="stat-value" id="sProjects">—</div>
+                    <div class="stat-sub">đang theo dõi</div>
+                </div>
+                <div class="stat-card red">
+                    <div class="stat-label">Backup mới nhất</div>
+                    <div class="stat-value" id="sLastDate"
+                        style="font-size:16px;margin-top:4px">—</div>
+                    <div class="stat-sub" id="sLastTime">—</div>
+                </div>
+            </div>
+
+            <div class="toolbar">
+                <span class="toolbar-label">Bệnh viện:</span>
+                <select id="filterHospital">
+                    <option value="all">Tất cả</option>
+                </select>
+                <span class="toolbar-label">Từ:</span>
+                <input type="date" id="fromDate">
+                <span class="toolbar-label">Đến:</span>
+                <input type="date" id="toDate">
+                <button class="btn primary" onclick="render()">Lọc</button>
+                <button class="btn" onclick="resetFilter()">Reset</button>
+                <button class="btn" onclick="doRefresh()">↻ Refresh</button>
+            </div>
+
+            <div class="filter-note" id="filterNote"></div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead id="thead">
+
+                    </thead>
+                    <tbody id="tbody">
+
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="status-bar" id="statusBar"></div>
+        </main>
+
+        <script>
+
+</script>
+    </body>
+</html>
