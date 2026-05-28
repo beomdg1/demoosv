@@ -258,25 +258,15 @@ const modal_Main = {
     }
   },
 
+  doRefresh: function() {
+  modal_Main.getdata().then(() => modal_Main.renderdata());
+},
+
+
   init: function () {
     modal_Main.getdata().then(() => modal_Main.renderdata());
   },
 };
 
-// Gán hàm ra ngoài để HTML gọi được
-function render() {
-  modal_Main.renderdata();
-}
-function resetFilter() {
-  document.getElementById("filterHospital").value = "all";
-  document.getElementById("fromDate").value = "";
-  document.getElementById("toDate").value = "";
-  modal_Main.renderdata();
-}
-function doRefresh() {
-  modal_Main.getdata().then(() => modal_Main.renderdata());
-  document.getElementById("lastSync").textContent =
-    "sync: " + new Date().toTimeString().slice(0, 8);
-}
 
 modal_Main.init();

@@ -2,12 +2,12 @@
 # Dành cho Bệnh viện Sản Nhi Nghệ An
 
 param(
-    [string]$ConfigFile = "F:\hospital_config.json"
+    [string]$ConfigFile = "C:\Users\Administrator\Downloads\nerrr\hospital_config.json" 
 )
 
 $API_URL = "https://demoosv.onrender.com/api/backup"
 # $API_TOKEN = "ZTc2YzM3NjYtZmE2My00MTU2LWIxYzAtNzgyYjNlNGZhNDI3"
-$LOG_FILE = "F:\log.log"
+$LOG_FILE = "C:\Users\Administrator\Downloads\nerrr\send_metadata_to_central.ps1"
 
 # Tạo thư mục log nếu chưa có
 $logDir = Split-Path $LOG_FILE -Parent
