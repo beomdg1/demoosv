@@ -33,229 +33,229 @@ const modal_Main = {
     const data = await modal_Main.ApiResponse("/api/getdata");
     modal_Main.hospitals = data.data;
     console.log(modal_Main.hospitals);
+
+    // Populate hospital filter dropdown
+    const hosts = [...new Set(modal_Main.hospitals.map((b) => b.host))].sort();
+    const select = document.getElementById("filterHospital");
+    select.innerHTML = '<option value="all">Tất cả</option>';
+    hosts.forEach((h) => {
+      const opt = document.createElement("option");
+      opt.value = h;
+      opt.textContent = h;
+      select.appendChild(opt);
+    });
+  },
+
+  // Helper: parse date string từ PostgreSQL → "YYYY-MM-DD"
+  parseDate: function (dateStr) {
+    if (!dateStr) return "";
+    // PostgreSQL trả về dạng "2025-05-28T00:00:00.000Z" hoặc "2025-05-28 00:00:00"
+    return dateStr.slice(0, 10);
+  },
+
+  // Helper: parse time string từ PostgreSQL → "HH:MM:SS"
+  parseTime: function (dateStr) {
+    if (!dateStr) return "";
+    // Nếu có chữ T (ISO format)
+    if (dateStr.includes("T")) {
+      return dateStr.slice(11, 19);
+    }
+    // Nếu dạng "2025-05-28 17:30:00"
+    return dateStr.slice(11, 19);
   },
 
   renderdata: function () {
 
-    const hospital = document.getElementById("filterHospital").value;
+    const filterHospital = document.getElementById("filterHospital").value;
     const from = document.getElementById("fromDate").value;
     const to = document.getElementById("toDate").value;
 
     let data = [...modal_Main.hospitals];
 
-    // FILTER
-    if (hospital !== "all") {
-        data = data.filter((b) => b.host === hospital);
+    // ── FILTER HOSPITAL
+    if (filterHospital !== "all") {
+      data = data.filter((b) => b.host === filterHospital);
     }
 
+    // ── FILTER DATE (nếu người dùng chọn thủ công)
     if (from) {
-        data = data.filter((b) => b.backup_date.slice(0, 10) >= from);
+      data = data.filter((b) => modal_Main.parseDate(b.backup_date) >= from);
     }
 
     if (to) {
-        data = data.filter((b) => b.backup_date.slice(0, 10) <= to);
+      data = data.filter((b) => modal_Main.parseDate(b.backup_date) <= to);
     }
 
-    // STATS
+    // ── LẤY TẤT CẢ NGÀY CÓ TRONG DATA
+    const allDates = [
+      ...new Set(data.map((b) => modal_Main.parseDate(b.backup_date)))
+    ].sort();
+
+    // ── CHỈ HIỂN THỊ 3 NGÀY GẦN NHẤT (khi không filter ngày thủ công)
+    let dates;
+    if (!from && !to) {
+      dates = allDates.slice(-3); // 3 ngày cuối
+    } else {
+      dates = allDates;
+    }
+
+    // ── STATS
     const totalSize = data.reduce(
-        (sum, b) => sum + (Number(b.backup_size) || 0),
-        0
+      (sum, b) => sum + (Number(b.backup_size) || 0),
+      0
     );
 
     const hosts = [...new Set(data.map((b) => b.host))];
 
-    const sorted = [...data].sort(
-        (a, b) => new Date(b.backup_date) - new Date(a.backup_date)
-    );
+    // Backup mới nhất — sort theo created_at nếu có, fallback backup_date
+    const sorted = [...data].sort((a, b) => {
+      const dateA = new Date(a.created_at || a.backup_date);
+      const dateB = new Date(b.created_at || b.backup_date);
+      return dateB - dateA;
+    });
 
     const last = sorted[0];
 
     document.getElementById("sTotalBackups").textContent = data.length;
-
-    document.getElementById("sTotalSize").textContent =
-        totalSize.toFixed(2);
-
-    document.getElementById("sProjects").textContent =
-        hosts.length;
+    document.getElementById("sTotalSize").textContent = totalSize.toFixed(2);
+    document.getElementById("sProjects").textContent = hosts.length;
 
     if (last) {
+      const lastDate = modal_Main.parseDate(last.backup_date);
+      const lastTime = modal_Main.parseTime(last.backup_date);
 
-        document.getElementById("sLastDate").textContent =
-            last.backup_date.slice(0, 10);
-
-        document.getElementById("sLastTime").textContent =
-            last.backup_date.slice(11, 19);
+      document.getElementById("sLastDate").textContent = lastDate || "—";
+      document.getElementById("sLastTime").textContent = lastTime || "—";
     }
 
-    // DATES
-    const dates = [
-        ...new Set(data.map((b) => b.backup_date.slice(0, 10)))
-    ].sort();
-
+    // ── PIVOT: host → date → record
     const pivot = {};
 
+    // Pivot dựa trên toàn bộ data (không giới hạn 3 ngày) để tính trend/disk chính xác
     data.forEach((b) => {
-
-        const host = b.host;
-        const date = b.backup_date.slice(0, 10);
-
-        if (!pivot[host]) {
-            pivot[host] = {};
-        }
-
-        if (!pivot[host][date]) {
-            pivot[host][date] = b;
-        }
-
+      const host = b.host;
+      const date = modal_Main.parseDate(b.backup_date);
+      if (!pivot[host]) pivot[host] = {};
+      if (!pivot[host][date]) pivot[host][date] = b;
     });
 
-    // HEADER
+    // ── HEADER
     document.getElementById("thead").innerHTML = `
-        <tr>
-            <th>Hospital / Host</th>
-
-            ${dates.map((d) =>
-                `<th class="center">${d.slice(5)}</th>`
-            ).join("")}
-
-            <th class="center">Trend</th>
-            <th class="center">Disk</th>
-        </tr>
+      <tr>
+        <th>Hospital / Host</th>
+        ${dates.map((d) => `<th class="center">${d.slice(5)}</th>`).join("")}
+        <th class="center">Trend</th>
+        <th class="center">Disk</th>
+      </tr>
     `;
 
+    // ── ROWS
     let html = "";
-
     const rows = hosts.sort();
 
     rows.forEach((host) => {
 
-        html += `
-            <tr>
-                <td>
-                    <div class="hospital-name">
-                        ${host}
-                    </div>
-                </td>
-        `;
+      html += `
+        <tr>
+          <td>
+            <div class="hospital-name">${host}</div>
+          </td>
+      `;
 
-        const sizes = [];
+      const sizes = [];
 
-        dates.forEach((date) => {
+      dates.forEach((date) => {
+        const rec = pivot[host]?.[date];
 
-            const rec = pivot[host]?.[date];
-
-            if (!rec) {
-
-                html += `
-                    <td class="center">
-                        —
-                    </td>
-                `;
-
-                sizes.push(null);
-
-            } else if (
-                rec.file_name === "NO_BACKUP" ||
-                Number(rec.backup_size) === 0
-            ) {
-
-                html += `
-                    <td class="center">
-                        <span class="badge fail">
-                            FAIL
-                        </span>
-                    </td>
-                `;
-
-                sizes.push(0);
-
-            } else {
-
-                html += `
-                    <td class="center">
-                        <span class="badge ok">
-                            ${Number(rec.backup_size).toFixed(2)} GB
-                        </span>
-                    </td>
-                `;
-
-                sizes.push(Number(rec.backup_size));
-            }
-
-        });
-
-        // TREND
-        const valid = sizes.filter(
-            (s) => s !== null && s > 0
-        );
-
-        let trendHtml = "—";
-
-        if (valid.length >= 2) {
-
-            const change =
-                valid[valid.length - 1] - valid[0];
-
-            if (change > 0.01) {
-
-                trendHtml = `
-                    <span class="trend-up">
-                        ↑ +${change.toFixed(2)} GB
-                    </span>
-                `;
-
-            } else if (change < -0.01) {
-
-                trendHtml = `
-                    <span class="trend-down">
-                        ↓ ${change.toFixed(2)} GB
-                    </span>
-                `;
-            }
-        }
-
-        // DISK
-        const lastRec = dates
-            .slice()
-            .reverse()
-            .map((d) => pivot[host]?.[d])
-            .find((r) => r && r.disk_total > 0);
-
-        let diskHtml = "—";
-
-        if (lastRec) {
-
-            const pct = Number(lastRec.disk_percent);
-
-            diskHtml = `
-                ${Number(lastRec.disk_free).toFixed(0)} GB
-                / ${Number(lastRec.disk_total).toFixed(0)} GB
-                (${pct.toFixed(1)}%)
-            `;
-        }
-
-        html += `
+        if (!rec) {
+          html += `<td class="center">—</td>`;
+          sizes.push(null);
+        } else if (rec.file_name === "NO_BACKUP" || Number(rec.backup_size) === 0) {
+          html += `<td class="center"><span class="badge fail">FAIL</span></td>`;
+          sizes.push(0);
+        } else {
+          html += `
             <td class="center">
-                ${trendHtml}
+              <span class="badge ok">${Number(rec.backup_size).toFixed(2)} GB</span>
             </td>
+          `;
+          sizes.push(Number(rec.backup_size));
+        }
+      });
 
-            <td>
-                ${diskHtml}
-            </td>
+      // TREND
+      const valid = sizes.filter((s) => s !== null && s > 0);
+      let trendHtml = "—";
 
-        </tr>
+      if (valid.length >= 2) {
+        const change = valid[valid.length - 1] - valid[0];
+        if (change > 0.01) {
+          trendHtml = `<span class="trend-up">↑ +${change.toFixed(2)} GB</span>`;
+        } else if (change < -0.01) {
+          trendHtml = `<span class="trend-down">↓ ${change.toFixed(2)} GB</span>`;
+        } else {
+          trendHtml = `<span class="trend-flat">= ổn định</span>`;
+        }
+      }
+
+      // DISK — lấy bản ghi mới nhất có disk_total > 0
+      const allHostDates = Object.keys(pivot[host] || {}).sort().reverse();
+      const lastRec = allHostDates
+        .map((d) => pivot[host][d])
+        .find((r) => r && Number(r.disk_total) > 0);
+
+      let diskHtml = "—";
+
+      if (lastRec) {
+        const pct = Number(lastRec.disk_percent);
+        const color = pct >= 90 ? "var(--red)" : pct >= 70 ? "var(--yellow)" : "var(--green)";
+        diskHtml = `
+          <div class="disk-info">
+            <div class="disk-bar-wrap">
+              <div class="disk-bar-fill" style="width:${pct}%;background:${color}"></div>
+            </div>
+            <span class="disk-text" style="color:${color}">
+              ${Number(lastRec.disk_free).toFixed(0)}/${Number(lastRec.disk_total).toFixed(0)} GB (${pct.toFixed(1)}%)
+            </span>
+          </div>
         `;
+      }
 
+      html += `
+        <td class="center">${trendHtml}</td>
+        <td>${diskHtml}</td>
+        </tr>
+      `;
     });
 
     document.getElementById("tbody").innerHTML = html;
 
-},
+    // Filter note
+    const note = document.getElementById("filterNote");
+    if (!from && !to) {
+      note.textContent = `Hiển thị 3 ngày gần nhất: ${dates.join(", ") || "—"}`;
+    } else {
+      note.textContent = `Lọc từ ${from || "—"} đến ${to || "—"} · ${dates.length} ngày`;
+    }
+  },
 
   init: function () {
     modal_Main.getdata().then(() => modal_Main.renderdata());
   },
 };
 
+// Gán hàm ra ngoài để HTML gọi được
+function render() { modal_Main.renderdata(); }
+function resetFilter() {
+  document.getElementById("filterHospital").value = "all";
+  document.getElementById("fromDate").value = "";
+  document.getElementById("toDate").value = "";
+  modal_Main.renderdata();
+}
+function doRefresh() {
+  modal_Main.getdata().then(() => modal_Main.renderdata());
+  document.getElementById("lastSync").textContent =
+    "sync: " + new Date().toTimeString().slice(0, 8);
+}
 
 modal_Main.init();
