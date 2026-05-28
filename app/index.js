@@ -1,6 +1,6 @@
 const modal_Main = {
   init: null,
-  api: process.env.API,
+  api: "https://demoosv.onrender.com",
   hospitals: [],
 
   ApiResponse: async function (link, method = "GET", body = null) {
